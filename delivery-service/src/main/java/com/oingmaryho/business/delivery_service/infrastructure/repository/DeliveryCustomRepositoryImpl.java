@@ -60,23 +60,30 @@ public class DeliveryCustomRepositoryImpl implements DeliveryCustomRepository {
                 .and(eqManagerId(managerId))
                 .and(eqIsDeleted(isDeleted));
 
-        // 조회 쿼리
-        List<Delivery> deliveries = queryFactory.selectDistinct(qDelivery)
+
+        List<UUID> ids = queryFactory.select(qDelivery.id)
                 .from(qDelivery)
-                .leftJoin(qDeliveryRoute).on(qDeliveryRoute.delivery.eq(qDelivery)).fetchJoin()
-                .leftJoin(qDeliveryManager).on(qDelivery.manager.id.eq(qDeliveryManager.id)).fetchJoin()
                 .where(builder)
                 .orderBy(QueryDslUtils.getOrderSpecifiers(pageable.getSort(), Delivery.class))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
-
-        // Count 쿼리
-        Long total = queryFactory.select(qDelivery.id.count())
+        // 조회 쿼리
+        List<Delivery> deliveries = queryFactory.selectDistinct(qDelivery)
                 .from(qDelivery)
                 .leftJoin(qDeliveryRoute).on(qDeliveryRoute.delivery.eq(qDelivery)).fetchJoin()
                 .leftJoin(qDeliveryManager).on(qDelivery.manager.id.eq(qDeliveryManager.id)).fetchJoin()
+                .where(qDelivery.id.in(ids))
+                .orderBy(QueryDslUtils.getOrderSpecifiers(pageable.getSort(), Delivery.class))
+                .fetch();
+
+
+        // Count 쿼리
+        Long total = queryFactory.select(qDelivery.count())
+                .from(qDelivery)
+                .leftJoin(qDeliveryRoute).on(qDeliveryRoute.delivery.eq(qDelivery))
+                .leftJoin(qDeliveryManager).on(qDelivery.manager.id.eq(qDeliveryManager.id))
                 .where(builder)
                 .fetchOne();
 
@@ -206,26 +213,33 @@ public class DeliveryCustomRepositoryImpl implements DeliveryCustomRepository {
             builder.and(qDeliveryRoute.isDeleted.eq(isDeleted));
         }
 
-        // 조회 쿼리
-        List<DeliveryRoute> routes = queryFactory.selectDistinct(qDeliveryRoute)
+        List<UUID> routeIds = queryFactory.select(qDeliveryRoute.id)
                 .from(qDeliveryRoute)
-                .leftJoin(qDelivery).on(qDeliveryRoute.delivery.eq(qDelivery)).fetchJoin()
-                .leftJoin(qDeliveryManager).on(qDelivery.manager.id.eq(qDeliveryManager.id)).fetchJoin()
                 .where(builder)
                 .orderBy(qDeliveryRoute.sequence.asc())
-//                .orderBy(QueryDslUtils.getOrderSpecifiers(pageable.getSort(), DeliveryRoute.class))
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
 
-        // Count 쿼리
-        Long total = queryFactory.select(qDeliveryRoute.id.count())
+        // 조회 쿼리
+        List<DeliveryRoute> routes = queryFactory.selectDistinct(qDeliveryRoute)
                 .from(qDeliveryRoute)
                 .leftJoin(qDelivery).on(qDeliveryRoute.delivery.eq(qDelivery)).fetchJoin()
                 .leftJoin(qDeliveryManager).on(qDelivery.manager.id.eq(qDeliveryManager.id)).fetchJoin()
+                .where(qDeliveryRoute.id.in(routeIds))
+                .orderBy(qDeliveryRoute.sequence.asc())
+                .fetch();
+
+
+        // Count 쿼리
+        Long total = queryFactory.select(qDeliveryRoute.count())
+                .from(qDeliveryRoute)
+                .leftJoin(qDelivery).on(qDeliveryRoute.delivery.eq(qDelivery))
+                .leftJoin(qDeliveryManager).on(qDelivery.manager.id.eq(qDeliveryManager.id))
                 .where(builder)
                 .fetchOne();
+
 
         return new PageImpl<>(
                 routes,
