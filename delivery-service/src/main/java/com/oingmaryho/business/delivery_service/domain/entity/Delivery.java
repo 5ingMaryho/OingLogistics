@@ -38,8 +38,12 @@ public class Delivery extends BaseEntity {
     @Column(nullable = false)
     private UUID departureHubId;
 
+    private String departureHubName;
+
     @Column(nullable = false)
     private UUID arriveHubId;
+
+    private String arriveHubName;
 
     @Column(nullable = false)
     private String address;

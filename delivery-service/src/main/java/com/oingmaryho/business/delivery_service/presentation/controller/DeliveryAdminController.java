@@ -14,6 +14,8 @@ import com.oingmaryho.business.delivery_service.presentation.dto.response.*;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Description;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +32,10 @@ public class DeliveryAdminController {
 
     private final DeliveryAdminService deliveryAdminService;
     private final DeliveryPresentationMapper deliveryPresentationMapper;
+    private final RabbitTemplate rabbitTemplate;
 
+    @Value("${message.queue.hubDeliveryManager}")
+    private String queueHubDeliveryManager;
 
     @Description(
             "마스터 - 배송 생성"
@@ -38,12 +43,16 @@ public class DeliveryAdminController {
     @Deprecated
     @RequiredRoles(UserRoleType.MASTER)
     @PostMapping
-    public ResponseEntity<DeliveryCreationResponseDto> createDelivery(
+    public ResponseEntity<UUID> createDelivery(
             @RequestBody DeliveryCreationRequestDto requestDto) {
-        DeliveryCreationRequestServiceDto requestServiceDto = deliveryPresentationMapper.toCreationServiceDto(requestDto);
-        DeliveryCreationResponseServiceDto responseServiceDto = deliveryAdminService.createDelivery(
-                requestServiceDto);
-        return ResponseEntity.ok(deliveryPresentationMapper.toCreationResponseDto(responseServiceDto));
+        DeliveryManagerAssignmentRequestServiceDto requestServiceDto = deliveryAdminService.createDelivery(
+                deliveryPresentationMapper.toCreationServiceDto(requestDto));
+
+        rabbitTemplate.convertAndSend(queueHubDeliveryManager, new DeliveryManagerAssignmentRequestDto(
+                requestServiceDto.deliveryId()
+        ));
+
+        return ResponseEntity.ok(requestServiceDto.deliveryId());
     }
 
     @Description(
@@ -57,7 +66,8 @@ public class DeliveryAdminController {
             @RequestBody DeliveryUpdateRequestDto requestDto) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryUpdateRequestServiceDto requestServiceDto = deliveryPresentationMapper.toUpdateServiceDto(id, requestDto);
         DeliveryUpdateResponseServiceDto responseServiceDto = deliveryAdminService.updateDelivery(
@@ -78,7 +88,8 @@ public class DeliveryAdminController {
             @RequestBody DeliveryUpdateStatusRequestDto requestDto) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryUpdateStatusRequestServiceDto requestServiceDto = deliveryPresentationMapper.toUpdateStatusServiceDto(id, requestDto);
         DeliveryUpdateStatusResponseServiceDto responseServiceDto = deliveryAdminService.updateStatusDelivery(
@@ -98,7 +109,8 @@ public class DeliveryAdminController {
             @PathVariable UUID id) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryDeletionRequestServiceDto requestServiceDto = deliveryPresentationMapper.toDeletionServiceDto(id);
         deliveryAdminService.deleteDelivery(
@@ -118,7 +130,8 @@ public class DeliveryAdminController {
             @PathVariable UUID id) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryDetailRequestServiceDto requestServiceDto = deliveryPresentationMapper.toDetailServiceDto(id);
         DeliveryResponseServiceDto responseServiceDto = deliveryAdminService.GetDeliveryDetail(
@@ -149,7 +162,8 @@ public class DeliveryAdminController {
             @RequestParam(value = "isDeleted", required = false) Boolean isDeleted) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliverySearchRequestDto requestDto = new DeliverySearchRequestDto(
                 id,
@@ -182,7 +196,8 @@ public class DeliveryAdminController {
             @PathVariable UUID id) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryRouteDetailRequestServiceDto requestServiceDto = deliveryPresentationMapper.toRouteDetailServiceDto(id);
         DeliveryRouteResponseServiceDto responseServiceDto = deliveryAdminService.GetDeliveryRouteDetail(
@@ -214,7 +229,8 @@ public class DeliveryAdminController {
             @RequestParam(value = "status", required = false) DeliveryRouteStatus status) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryRouteSearchRequestDto requestDto = new DeliveryRouteSearchRequestDto(
                 routeId,
@@ -249,7 +265,8 @@ public class DeliveryAdminController {
             @RequestBody DeliveryRouteUpdateStatusRequestDto requestDto) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryRouteUpdateStatusRequestServiceDto requestServiceDto = deliveryPresentationMapper.toUpdateRouteStatusServiceDto(id, requestDto);
         DeliveryRouteUpdateStatusResponseServiceDto responseServiceDto = deliveryAdminService.updateRouteStatusDelivery(

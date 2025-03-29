@@ -49,8 +49,6 @@ public interface DeliveryPresentationMapper {
     DeliveryManagerSearchRequestServiceDto toManagerSearchRequestDto(DeliveryManagerSearchRequestDto requestDto, Pageable customPageable);
 
     // ResponseServiceDto -> ResponseDto
-    DeliveryCreationResponseDto toCreationResponseDto(DeliveryCreationResponseServiceDto responseServiceDto);
-
     DeliveryUpdateResponseDto toUpdateResponseDto(DeliveryUpdateResponseServiceDto responseServiceDto);
 
     DeliveryUpdateStatusResponseDto toUpdateStatusResponseDto(DeliveryUpdateStatusResponseServiceDto responseServiceDto);

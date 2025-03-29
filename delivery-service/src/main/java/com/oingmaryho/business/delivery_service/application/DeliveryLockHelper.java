@@ -44,4 +44,12 @@ public class DeliveryLockHelper {
     private String getCompanyLockKey(UUID hubId) {
         return "lock:delivery:company" + hubId;
     }
+
+    public String getHubDeliveryManagerSequenceKey() {
+        return "hub:delivery:sequence";
+    }
+
+    public String getCompanyDeliveryManagerSequenceKey(UUID hubId) {
+        return "company:delivery:sequence:" + hubId;
+    }
 }

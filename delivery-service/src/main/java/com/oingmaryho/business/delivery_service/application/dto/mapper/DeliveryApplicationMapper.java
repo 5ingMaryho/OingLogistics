@@ -1,6 +1,8 @@
 package com.oingmaryho.business.delivery_service.application.dto.mapper;
 
 import com.oingmaryho.business.delivery_service.application.dto.request.DeliveryCreationRequestServiceDto;
+import com.oingmaryho.business.delivery_service.application.dto.request.DeliveryManagerAssignmentRequestServiceDto;
+import com.oingmaryho.business.delivery_service.application.dto.request.OrderMessageCreationRequestServiceDto;
 import com.oingmaryho.business.delivery_service.application.dto.response.*;
 import com.oingmaryho.business.delivery_service.domain.entity.Delivery;
 import com.oingmaryho.business.delivery_service.domain.entity.DeliveryManager;
@@ -35,6 +37,9 @@ public interface DeliveryApplicationMapper {
                                                                     String deliveryDestinationName,
                                                                     String deliveryManagerName,
                                                                     String deliveryManagerSlackId);
+
+    DeliveryManagerAssignmentRequestServiceDto toManagerAssignmentRequestServiceDto(UUID deliveryId);
+    OrderMessageCreationRequestServiceDto toOrderMessageCreationRequestServiceDto(UUID deliveryId);
 
     DeliveryUpdateResponseServiceDto toUpdateResponseServiceDto(UUID id);
     DeliveryUpdateStatusResponseServiceDto toUpdateStatusResponseServiceDto(UUID id);
