@@ -186,7 +186,7 @@ public class DeliveryCustomRepositoryImpl implements DeliveryCustomRepository {
         }
 
         if (deliveryId != null) {
-            builder.and(qDeliveryRoute.delivery.id.eq(deliveryId));
+            builder.and(qDelivery.id.eq(deliveryId));
         }
 
         if (departureHubId != null) {

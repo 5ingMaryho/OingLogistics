@@ -25,7 +25,9 @@ public enum ErrorCode {
     USER_ROLE_NOT_FOUND("U-002","해당 유저 권한을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     USER_NAME_NOT_FOUND("U-003", "해당 유저 이름을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
 
-    DELIVERY_MANAGER_NOT_ASSIGNED("L-001", "배송 담당자를 배정하는 중 문제가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+    DELIVERY_MANAGER_NOT_ASSIGNED("L-001", "배송 담당자를 배정하는 중 문제가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    LOCK_FAILED("L-002","락을 획득하는 중 문제가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    UNLOCK_FAILED("L-003","락을 해제하는 중 문제가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final String message;
