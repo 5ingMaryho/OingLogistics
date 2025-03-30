@@ -72,3 +72,9 @@ project(':slack-service') {
         implementation project(':common')
     }
 }
+
+project(':stock-service') {
+    dependencies {
+        implementation project(':common')
+    }
+}
