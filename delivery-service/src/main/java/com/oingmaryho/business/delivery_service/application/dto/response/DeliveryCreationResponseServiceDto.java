@@ -12,5 +12,5 @@ public record DeliveryCreationResponseServiceDto(
         String deliveryStopoverNames,
         String deliveryDestinationName,
         String deliveryManagerName,
-        String deliveryManagerSlackId){
-}
+        String deliveryManagerSlackId
+){ }

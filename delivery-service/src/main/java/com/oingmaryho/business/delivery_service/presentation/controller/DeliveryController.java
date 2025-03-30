@@ -44,7 +44,8 @@ public class DeliveryController {
             @RequestBody DeliveryUpdateRequestDto requestDto) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryUpdateRequestServiceDto requestServiceDto = deliveryPresentationMapper.toUpdateServiceDto(id, requestDto);
         DeliveryUpdateResponseServiceDto responseServiceDto = deliveryService.updateDelivery(
@@ -70,7 +71,8 @@ public class DeliveryController {
             @RequestBody DeliveryUpdateStatusRequestDto requestDto) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryUpdateStatusRequestServiceDto requestServiceDto = deliveryPresentationMapper.toUpdateStatusServiceDto(id, requestDto);
         DeliveryUpdateStatusResponseServiceDto responseServiceDto = deliveryService.updateStatusDelivery(
@@ -91,7 +93,8 @@ public class DeliveryController {
             @PathVariable UUID id) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryDeletionRequestServiceDto requestServiceDto = deliveryPresentationMapper.toDeletionServiceDto(id);
         deliveryService.deleteDelivery(
@@ -118,7 +121,8 @@ public class DeliveryController {
             @PathVariable UUID id) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryDetailRequestServiceDto requestServiceDto = deliveryPresentationMapper.toDetailServiceDto(id);
         DeliveryResponseServiceDto responseServiceDto = deliveryService.GetDeliveryDetail(
@@ -154,7 +158,8 @@ public class DeliveryController {
             @RequestParam(value = "managerId", required = false) Long managerId) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliverySearchRequestDto requestDto = new DeliverySearchRequestDto(
                 id,
@@ -192,7 +197,8 @@ public class DeliveryController {
             @PathVariable UUID id) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryRouteDetailRequestServiceDto requestServiceDto = deliveryPresentationMapper.toRouteDetailServiceDto(id);
         DeliveryRouteResponseServiceDto responseServiceDto = deliveryService.GetDeliveryRouteDetail(
@@ -230,7 +236,8 @@ public class DeliveryController {
             @RequestParam(value = "status", required = false) DeliveryRouteStatus status) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryRouteSearchRequestDto requestDto = new DeliveryRouteSearchRequestDto(
                 routeId,
@@ -268,7 +275,8 @@ public class DeliveryController {
             @RequestBody DeliveryRouteUpdateStatusRequestDto requestDto) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("userRole");
+        String userRoleStr = (String) request.getAttribute("role");
+        UserRoleType userRole = UserRoleType.valueOf(userRoleStr);
 
         DeliveryRouteUpdateStatusRequestServiceDto requestServiceDto = deliveryPresentationMapper.toUpdateRouteStatusServiceDto(id, requestDto);
         DeliveryRouteUpdateStatusResponseServiceDto responseServiceDto =

@@ -22,14 +22,19 @@ public class DeliveryRoute extends BaseEntity {
     @JoinColumn(name = "delivery_id", nullable = false)
     private Delivery delivery;
 
-    @Column(nullable = false)
     private Integer sequence;
 
     @Column(nullable = false)
     private UUID departureHubId;
 
     @Column(nullable = false)
+    private String departureHubName;
+
+    @Column(nullable = false)
     private UUID arriveHubId;
+
+    @Column(nullable = false)
+    private String arriveHubName;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -59,6 +64,15 @@ public class DeliveryRoute extends BaseEntity {
      */
     public void changeStatus(DeliveryRouteStatus newStatus){
         this.status = newStatus;
+    }
+
+    /**
+     * 허브 배송 담당자 배정
+     * @param manager 허브 배송 담당자
+     */
+    public void assignManager(int sequence, DeliveryManager manager) {
+        this.sequence = sequence;
+        this.manager = manager;
     }
 
     /**

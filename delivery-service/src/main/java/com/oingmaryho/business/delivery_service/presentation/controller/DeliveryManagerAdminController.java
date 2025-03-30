@@ -42,7 +42,7 @@ public class DeliveryManagerAdminController {
     ) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRole = (String) request.getAttribute("role");
 
         DeliveryManagerDetailRequestServiceDto requestServiceDto = deliveryPresentationMapper.toManagerDetailRequestDto(id);
         DeliveryManagerResponseServiceDto responseServiceDto = deliveryAdminService.GetDeliveryManagerDetail(
@@ -74,7 +74,7 @@ public class DeliveryManagerAdminController {
             @RequestParam(value = "isDeleted", required = false) Boolean isDeleted) {
 
         Long userId = (Long) request.getAttribute("userId");
-        UserRoleType userRole = (UserRoleType) request.getAttribute("role");
+        String userRole = (String) request.getAttribute("role");
 
         DeliveryManagerSearchRequestDto requestDto = new DeliveryManagerSearchRequestDto(
                 id,

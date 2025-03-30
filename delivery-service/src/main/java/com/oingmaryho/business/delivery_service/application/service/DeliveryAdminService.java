@@ -1,7 +1,7 @@
 package com.oingmaryho.business.delivery_service.application.service;
 
 import com.oingmaryho.business.common.domain.type.UserRoleType;
-import com.oingmaryho.business.delivery_service.application.DeliveryLockHelper;
+import com.oingmaryho.business.delivery_service.application.DeliveryManagerAssignmentHelper;
 import com.oingmaryho.business.delivery_service.application.dto.mapper.DeliveryApplicationMapper;
 import com.oingmaryho.business.delivery_service.application.dto.request.*;
 import com.oingmaryho.business.delivery_service.application.dto.response.*;
@@ -19,15 +19,22 @@ import com.oingmaryho.business.delivery_service.exception.DeliveryException;
 import com.oingmaryho.business.delivery_service.exception.ErrorCode;
 import com.oingmaryho.business.delivery_service.domain.repository.DeliveryManagerRepository;
 import com.oingmaryho.business.delivery_service.domain.repository.DeliveryRepository;
+import com.oingmaryho.business.delivery_service.exception.LockException;
+import com.oingmaryho.business.delivery_service.infrastructure.DistributedLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,18 +48,15 @@ public class DeliveryAdminService {
     private final HubClient hubClient;
     private final UserClient userClient;
 
-    private final RedisTemplate<String, Object> redisTemplate;
-
     private final DeliveryRepository deliveryRepository;
     private final DeliveryManagerRepository deliveryManagerRepository;
     private final DeliveryApplicationMapper deliveryApplicationMapper;
 
     // --- helper --- //
-    private final DeliveryLockHelper deliveryLockHelper;
+    private final DeliveryManagerAssignmentHelper deliveryManagerAssignmentHelper;
 
-
-    @Transactional
-    public DeliveryCreationResponseServiceDto createDelivery(
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public DeliveryManagerAssignmentRequestServiceDto createDelivery(
             DeliveryCreationRequestServiceDto requestServiceDto) {
 
         // 1. 최적 경로 조회
@@ -61,7 +65,7 @@ public class DeliveryAdminService {
         ).orElseThrow(() -> new DeliveryException(ErrorCode.HUB_PATH_NOT_FOUND));
 
 
-        // -----logging----- //
+        // --- logging --- //
         for (int i = 0; i < hubRoutes.size(); i++) {
             log.info("route{} : departureId({}) arriveId({}) time({}) dist({})",
                     i,
@@ -71,160 +75,107 @@ public class DeliveryAdminService {
                     hubRoutes.get(i).distance());
         }
 
-        // 2. 배송 객체 생성
+        // 2. 배송 생성
         Delivery delivery = Delivery.builder()
                 .orderId(requestServiceDto.orderId())
                 .orderDetailId(requestServiceDto.orderDetailId())
                 .companyId(requestServiceDto.companyId())
                 .departureHubId(hubRoutes.get(0).departureHubId())
+                .departureHubName(hubRoutes.get(0).departureHubName())
                 .arriveHubId(hubRoutes.get(hubRoutes.size()-1).arriveHubId())
+                .arriveHubName(hubRoutes.get(hubRoutes.size()-1).arriveHubName())
                 .address(requestServiceDto.address())
                 .receiver(requestServiceDto.receiver())
                 .receiverSlackId(requestServiceDto.receiverSlackId())
                 .build();
 
-        String hubDeliveryManagerSequenceKey = "hub:delivery:sequence";
-
-        // 3. 현재 허브 배송 담당자 sequence 값 백업
-        Object backupValue = redisTemplate.opsForValue().get(hubDeliveryManagerSequenceKey);
-        int backupHubDeliveryManagerSequence = Optional.ofNullable(backupValue)
-                .map(Object::toString)
-                .map(Integer::parseInt)
-                .orElse(0);
-
-        // redis 초기값 보장
-        redisTemplate.opsForValue().setIfAbsent(hubDeliveryManagerSequenceKey, 0);
-//        if (!redisTemplate.hasKey(hubDeliveryManagerSequenceKey)) {
-//            redisTemplate.opsForValue().set(hubDeliveryManagerSequenceKey, 0);
-//        }
-
-
-        // 락
+        // 3. 배송 경로 생성
         int routeSequence = 0;
-        String hubLockValue = UUID.randomUUID().toString();
-        boolean hubLocked = deliveryLockHelper.tryHubManagerLock(hubLockValue, 5);
+        for (HubPathResponseDto route : hubRoutes) {
+            DeliveryRoute deliveryRoute = DeliveryRoute.builder()
+                    .delivery(delivery)
+                    .departureHubId(route.departureHubId())
+                    .departureHubName(route.departureHubName())
+                    .arriveHubId(route.arriveHubId())
+                    .departureHubName(route.departureHubName())
+                    .arriveHubName(route.arriveHubName())
+                    .status(DeliveryRouteStatus.HUB_WAITING)
+                    .sequence(routeSequence++)
+                    .estimatedDistance(route.distance())
+                    .estimatedTime(route.hubToHubTime())
+                    .build();
 
-        if (!hubLocked) {
-            throw new DeliveryException(ErrorCode.INTERNAL_SERVER_ERROR);
+            deliveryRoute.addRoute(delivery);
         }
 
-        StringBuilder hubNames = new StringBuilder(hubRoutes.get(0).departureHubName());
+        Delivery savedDelivery = deliveryRepository.save(delivery);
 
-        // 4. 허브 배송 담당자 배정
-        try {
-            for (HubPathResponseDto route : hubRoutes) {
-                // 4-1. 현재 배정해야 할 허브 배송 담당자 sequence 조회
-                int hubDeliveryManagerSequence = Optional.ofNullable(redisTemplate.opsForValue().get(hubDeliveryManagerSequenceKey))
-                        .map(Object::toString)
-                        .map(Integer::parseInt)
-                        .orElse(0);
+        return deliveryApplicationMapper.toManagerAssignmentRequestServiceDto(
+                savedDelivery.getId()
+        );
+    }
 
-                // 4-2. 현재 sequence에 해당하는 허브 배송 담당자를 조회 (전체 물류 시스템에 10명 - 순차 배정)
-                DeliveryManager hubDeliveryManager = deliveryManagerRepository.findByTypeAndSequence(
-                                DeliveryManagerType.HUB_DELIVERY_MANAGER,
-                                hubDeliveryManagerSequence % 10)
-                        .orElseThrow(() -> new DeliveryException(ErrorCode.MANAGER_NOT_FOUND));
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public DeliveryManagerAssignmentRequestServiceDto assignHubDeliveryManager(
+            DeliveryManagerAssignmentRequestServiceDto requestServiceDto) {
 
-                // 4-3. redis 허브 배송 담당자 sequence 업데이트
-                redisTemplate.opsForValue().increment(hubDeliveryManagerSequenceKey);
+        Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.deliveryId())
+                .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
-                // 4-4. 배송 경로 생성
-                DeliveryRoute deliveryRoute = DeliveryRoute.builder()
-                        .delivery(delivery)
-                        .sequence(routeSequence++)
-                        .departureHubId(route.departureHubId())
-                        .arriveHubId(route.arriveHubId())
-                        .status(DeliveryRouteStatus.HUB_WAITING)
-                        .estimatedDistance(route.distance())
-                        .estimatedTime(route.hubToHubTime())
-                        .manager(hubDeliveryManager)
-                        .build();
+        return deliveryManagerAssignmentHelper.assignHubDeliveryManagerWithLock(
+                deliveryManagerAssignmentHelper.getHubDeliveryManagerLockKey(),
+                deliveryManagerAssignmentHelper.getHubDeliveryManagerSequenceKey(),
+                delivery);
+    }
 
-                deliveryRoute.addRoute(delivery);
-                // 4-5. 경유 허브 이름 저장
-                hubNames.append(",").append(route.arriveHubName());
-            }
-        } catch (Exception e) {
-            // 예외 발생 시 Redis 값 복원
-            redisTemplate.opsForValue().set(hubDeliveryManagerSequenceKey, backupHubDeliveryManagerSequence);
-            // 예외 다시 던져서 트랜잭션 롤백 유도
-            throw new DeliveryException(ErrorCode.DELIVERY_MANAGER_NOT_ASSIGNED);
-        } finally {
-            deliveryLockHelper.releaseHubManagerLock(hubLockValue);
+
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public OrderMessageCreationRequestServiceDto assignCompanyDeliveryManager(
+            DeliveryManagerAssignmentRequestServiceDto requestServiceDto) {
+
+        Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.deliveryId())
+                .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
+
+        UUID arriveHubId = delivery.getArriveHubId();
+        return deliveryManagerAssignmentHelper.assignCompanyDeliveryManagerWithLock(
+                deliveryManagerAssignmentHelper.getCompanyDeliveryManagerLockKey(arriveHubId),
+                deliveryManagerAssignmentHelper.getCompanyDeliveryManagerSequenceKey(arriveHubId),
+                delivery,
+                arriveHubId);
+    }
+
+
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public DeliveryCreationResponseServiceDto createMessageToOrder(
+            OrderMessageCreationRequestServiceDto requestServiceDto) {
+
+        Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.deliveryId())
+                .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
+
+        List<DeliveryRoute> hubRoutes = delivery.getRoutes();
+
+        StringBuilder hubNames = new StringBuilder(delivery.getDepartureHubName());
+
+        for (DeliveryRoute route: hubRoutes) {
+            hubNames.append(",").append(route.getArriveHubId());
         }
 
-        UUID arriveHubId = hubRoutes.get(hubRoutes.size() - 1).arriveHubId();
+        // 업체 배송 담당자 이름 조회
+        String companyDeliveryManagerName = Optional.ofNullable(userClient.getUserName(delivery.getManager().getManagerId()).getBody())
+                .orElseThrow(() -> new DeliveryException(ErrorCode.USER_NAME_NOT_FOUND));
 
-        // 5. 배송에 업체 배송 담당자 배정
-        String companyDeliveryManagerSequenceKey = "company:delivery:sequence:" + arriveHubId;
-        // redis 초기값 보장
-        redisTemplate.opsForValue().setIfAbsent(companyDeliveryManagerSequenceKey, 0);
-//        if (!redisTemplate.hasKey(companyDeliveryManagerSequenceKey)) {
-//            redisTemplate.opsForValue().set(companyDeliveryManagerSequenceKey, 0);
-//        }
-
-        // 락
-        String companyLockValue = UUID.randomUUID().toString();
-        boolean companyLocked = deliveryLockHelper.tryCompanyManagerLock(arriveHubId, companyLockValue, 5);
-
-        if (!companyLocked) {
-            throw new DeliveryException(ErrorCode.INTERNAL_SERVER_ERROR);
-        }
-
-        String companyDeliveryManagerSlackId = null;  // 업체 배송 담당자 배정 sequence 업데이트 전 예외가 발생했을 때 처리를 위한 flag
-        try {
-            // 5-1. 현재 배정해야 할 업체 배송 담당자 sequence 조회
-            int companySequence = Optional.ofNullable(redisTemplate.opsForValue().get(companyDeliveryManagerSequenceKey))
-                    .map(Object::toString)
-                    .map(Integer::parseInt)
-                    .orElse(0);
-
-            // 5-2. 현재 sequence에 해당하는 업체 배송 담당자를 조회 (배송 경로 기준 마지막 경로의 도착지 허브에 있는 업체 배송 담당자 10명 - 순차 배정)
-            DeliveryManager companyDeliveryManager = deliveryManagerRepository.findByHubIdAndTypeAndSequence(
-                            arriveHubId, DeliveryManagerType.COMPANY_DELIVERY_MANAGER, companySequence % 10)
-                    .orElseThrow(() -> new DeliveryException(ErrorCode.MANAGER_NOT_FOUND));
-
-            companyDeliveryManagerSlackId = companyDeliveryManager.getSlackId();
-
-            // 5-3. 업체 배송 담당자 배송 엔티티에 연결
-            delivery.update(null, null, null, companyDeliveryManager);
-
-            // 5-4. redis 업체 배송 담당자 sequence 업데이트
-            redisTemplate.opsForValue().increment(companyDeliveryManagerSequenceKey);
-
-        } catch (DeliveryException e) {
-            throw new DeliveryException(ErrorCode.DELIVERY_MANAGER_NOT_ASSIGNED);
-        } catch (Exception e) {
-            throw new DeliveryException(ErrorCode.INTERNAL_SERVER_ERROR);
-        } finally {
-            deliveryLockHelper.releaseCompanyManagerLock(arriveHubId, companyLockValue);
-        }
-
-        try {
-            // 6. 배송 생성
-            Delivery savedDelivery = deliveryRepository.save(delivery);
-
-            // 7. 업체 배송 담당자 이름 조회
-            String companyDeliveryManagerName = Optional.ofNullable(userClient.getUserName(delivery.getManager().getManagerId()).getBody())
-                    .orElseThrow(() -> new DeliveryException(ErrorCode.USER_NAME_NOT_FOUND));
-
-            // 8. 배송 정보 반환
-            return deliveryApplicationMapper.toCreationResponseServiceDto(
-                    savedDelivery.getOrderId(),
-                    savedDelivery.getOrderDetailId(),
-                    savedDelivery.getId(),
-                    hubRoutes.get(0).departureHubName(),
-                    hubNames.toString(),
-                    hubRoutes.get(hubRoutes.size()-1).arriveHubName(),
-                    companyDeliveryManagerName,
-                    companyDeliveryManagerSlackId);
-        } catch (DeliveryException e) {
-            redisTemplate.opsForValue().increment(companyDeliveryManagerSequenceKey, -1);
-            throw new DeliveryException(ErrorCode.DELIVERY_MANAGER_NOT_ASSIGNED);
-        } catch (Exception e) {
-            redisTemplate.opsForValue().increment(companyDeliveryManagerSequenceKey, -1);
-            throw new DeliveryException(ErrorCode.INTERNAL_SERVER_ERROR);
-        }
+        return deliveryApplicationMapper.toCreationResponseServiceDto(
+                delivery.getOrderId(),
+                delivery.getOrderDetailId(),
+                delivery.getId(),
+                delivery.getDepartureHubName(),
+                hubNames.toString(),
+                delivery.getArriveHubName(),
+                companyDeliveryManagerName,
+                delivery.getManager().getSlackId()
+        );
 
     }
 
@@ -242,7 +193,7 @@ public class DeliveryAdminService {
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
         // managerId로 user 쪽에 수정하려는 manager가 '업체 배송 담당자'인지 유효성 검사
-        UserRoleType userRoleType = (UserRoleType) Optional.ofNullable(
+        UserRoleType userRoleType = Optional.ofNullable(
                 userClient.getUserRoleById(requestServiceDto.managerId()).getBody()
         ).orElseThrow(() -> new DeliveryException(ErrorCode.USER_ROLE_NOT_FOUND));
 
@@ -438,7 +389,7 @@ public class DeliveryAdminService {
     @Transactional(readOnly = true)
     public DeliveryManagerResponseServiceDto GetDeliveryManagerDetail(
             Long userId,
-            UserRoleType userRole,
+            String userRole,
             DeliveryManagerDetailRequestServiceDto requestServiceDto) {
 
         DeliveryManager manager = deliveryManagerRepository.findById(requestServiceDto.id())
@@ -452,7 +403,7 @@ public class DeliveryAdminService {
     @Transactional(readOnly = true)
     public Page<DeliveryManagerResponseServiceDto> GetDeliveryManagerBySearch(
             Long userId,
-            UserRoleType userRole,
+            String userRole,
             DeliveryManagerSearchRequestServiceDto requestServiceDto) {
 
         DeliveryManagerSearchCriteria criteria = createDeliveryManagerSearchCriteria(

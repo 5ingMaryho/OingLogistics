@@ -62,7 +62,7 @@ public class DeliveryService {
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
         // 허브 관리자 : 본인이 담당하는 허브의 배송인 지 유효성 검사
-        if (userRole == UserRoleType.HUB_MANAGER) {
+        if (userRole.equals(UserRoleType.HUB_MANAGER)) {
 
             HubSearchResponseDto hubDto = Optional.ofNullable(hubClient.getHubByManagerId(userId).getBody())
                     .orElseThrow(() -> new DeliveryException(ErrorCode.HUB_NOT_FOUND));
