@@ -1,4 +1,4 @@
-package com.oingmaryho.business.productservice.presentation.controller;
+package com.oingmaryho.business.productservice.presentation.controller.command;
 
 import java.util.UUID;
 
@@ -21,15 +21,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @RequestMapping("/product-service/products")
 public class ProductFeignClientController {
-	private final ProductFeignClientService productService;
-	private final ProductPresentationMapper productPresentationMapper;
+    private final ProductFeignClientService productService;
+    private final ProductPresentationMapper productPresentationMapper;
 
-	@Description("FeignClient - 상품 상세 조회")
-	@GetMapping("/{id}")
-	public ResponseEntity<ProductDetailsSearchResponseDto> getProductById(@PathVariable UUID id) {
-		ProductDetailsSearchRequestServiceDto requestServiceDto = productPresentationMapper.toDetailsSearchServiceDto(id);
-		ProductDetailsSearchResponseServiceDto responseServiceDto = productService.getProduct(requestServiceDto);
-		ProductDetailsSearchResponseDto response = productPresentationMapper.toDetailsSearchDto(responseServiceDto);
-		return ResponseEntity.ok(response);
-	}
+    @Description("FeignClient - 상품 상세 조회")
+    @GetMapping("/{id}")
+    public ResponseEntity<ProductDetailsSearchResponseDto> getProductById(@PathVariable UUID id) {
+        ProductDetailsSearchRequestServiceDto requestServiceDto = productPresentationMapper.toDetailsSearchServiceDto(id);
+        ProductDetailsSearchResponseServiceDto responseServiceDto = productService.getProduct(requestServiceDto);
+        ProductDetailsSearchResponseDto response = productPresentationMapper.toDetailsSearchDto(responseServiceDto);
+        return ResponseEntity.ok(response);
+    }
 }
