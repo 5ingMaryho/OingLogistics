@@ -19,22 +19,18 @@ import com.oingmaryho.business.delivery_service.exception.DeliveryException;
 import com.oingmaryho.business.delivery_service.exception.ErrorCode;
 import com.oingmaryho.business.delivery_service.domain.repository.DeliveryManagerRepository;
 import com.oingmaryho.business.delivery_service.domain.repository.DeliveryRepository;
-import com.oingmaryho.business.delivery_service.exception.LockException;
-import com.oingmaryho.business.delivery_service.infrastructure.DistributedLock;
+import com.oingmaryho.business.delivery_service.presentation.dto.response.DeliveryCreationResponseDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationAdapter;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -55,109 +51,128 @@ public class DeliveryAdminService {
     // --- helper --- //
     private final DeliveryManagerAssignmentHelper deliveryManagerAssignmentHelper;
 
+    // --- listener --- //
+    private final RabbitTemplate rabbitTemplate;
+
+    @Value("${message.queue.order}")
+    private String queueOrder;
+    @Value("${message.queue.deliveryManager}")
+    private String queueDeliveryManager;
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public DeliveryManagerAssignmentRequestServiceDto createDelivery(
+    public void createDelivery(
             DeliveryCreationRequestServiceDto requestServiceDto) {
 
-        // 1. 최적 경로 조회
-        List<HubPathResponseDto> hubRoutes = Optional.ofNullable(
-                hubClient.getPath(requestServiceDto.hubId(), requestServiceDto.address()).getBody()
-        ).orElseThrow(() -> new DeliveryException(ErrorCode.HUB_PATH_NOT_FOUND));
+        log.info("[Delivery Creation Request] orderId = {}, orderDetailId = {}",
+                requestServiceDto.orderId(), requestServiceDto.orderDetailId());
 
+        try {
+            List<HubPathResponseDto> hubRoutes = Optional.ofNullable(
+                    hubClient.getPath(requestServiceDto.hubId(), requestServiceDto.address()).getBody()
+            ).orElseThrow(() -> new DeliveryException(ErrorCode.HUB_PATH_NOT_FOUND));
 
-        // --- logging --- //
-        for (int i = 0; i < hubRoutes.size(); i++) {
-            log.info("route{} : departureId({}) arriveId({}) time({}) dist({})",
-                    i,
-                    hubRoutes.get(i).departureHubId(),
-                    hubRoutes.get(i).arriveHubId(),
-                    hubRoutes.get(i).hubToHubTime(),
-                    hubRoutes.get(i).distance());
-        }
-
-        // 2. 배송 생성
-        Delivery delivery = Delivery.builder()
-                .orderId(requestServiceDto.orderId())
-                .orderDetailId(requestServiceDto.orderDetailId())
-                .companyId(requestServiceDto.companyId())
-                .departureHubId(hubRoutes.get(0).departureHubId())
-                .departureHubName(hubRoutes.get(0).departureHubName())
-                .arriveHubId(hubRoutes.get(hubRoutes.size()-1).arriveHubId())
-                .arriveHubName(hubRoutes.get(hubRoutes.size()-1).arriveHubName())
-                .address(requestServiceDto.address())
-                .receiver(requestServiceDto.receiver())
-                .receiverSlackId(requestServiceDto.receiverSlackId())
-                .build();
-
-        // 3. 배송 경로 생성
-        int routeSequence = 0;
-        for (HubPathResponseDto route : hubRoutes) {
-            DeliveryRoute deliveryRoute = DeliveryRoute.builder()
-                    .delivery(delivery)
-                    .departureHubId(route.departureHubId())
-                    .departureHubName(route.departureHubName())
-                    .arriveHubId(route.arriveHubId())
-                    .departureHubName(route.departureHubName())
-                    .arriveHubName(route.arriveHubName())
-                    .status(DeliveryRouteStatus.HUB_WAITING)
-                    .sequence(routeSequence++)
-                    .estimatedDistance(route.distance())
-                    .estimatedTime(route.hubToHubTime())
+            Delivery delivery = Delivery.builder()
+                    .orderId(requestServiceDto.orderId())
+                    .orderDetailId(requestServiceDto.orderDetailId())
+                    .companyId(requestServiceDto.companyId())
+                    .departureHubId(hubRoutes.get(0).departureHubId())
+                    .departureHubName(hubRoutes.get(0).departureHubName())
+                    .arriveHubId(hubRoutes.get(hubRoutes.size()-1).arriveHubId())
+                    .arriveHubName(hubRoutes.get(hubRoutes.size()-1).arriveHubName())
+                    .address(requestServiceDto.address())
+                    .receiver(requestServiceDto.receiver())
+                    .receiverSlackId(requestServiceDto.receiverSlackId())
                     .build();
 
-            deliveryRoute.addRoute(delivery);
+            int routeSequence = 0;
+            for (HubPathResponseDto route : hubRoutes) {
+                DeliveryRoute deliveryRoute = DeliveryRoute.builder()
+                        .delivery(delivery)
+                        .departureHubId(route.departureHubId())
+                        .departureHubName(route.departureHubName())
+                        .arriveHubId(route.arriveHubId())
+                        .departureHubName(route.departureHubName())
+                        .arriveHubName(route.arriveHubName())
+                        .status(DeliveryRouteStatus.HUB_WAITING)
+                        .sequence(routeSequence++)
+                        .estimatedDistance(route.distance())
+                        .estimatedTime(route.hubToHubTime())
+                        .build();
+
+                deliveryRoute.addRoute(delivery);
+            }
+
+            Delivery savedDelivery = deliveryRepository.save(delivery);
+            rabbitTemplate.convertAndSend(queueDeliveryManager, new DeliveryManagerAssignmentRequestDto(
+                    savedDelivery.getId()
+            ));
+        } catch (DeliveryException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DeliveryException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
-
-        Delivery savedDelivery = deliveryRepository.save(delivery);
-
-        return deliveryApplicationMapper.toManagerAssignmentRequestServiceDto(
-                savedDelivery.getId()
-        );
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void assignDeliveryManager(DeliveryManagerAssignmentRequestServiceDto requestServiceDto) {
+        log.info("[HubDeliveryManager Assignment Request] deliveryId = {}", requestServiceDto.deliveryId());
+
+        try {
+            DeliveryManagerAssignmentRequestServiceDto requestServiceDto1 = assignHubDeliveryManager(requestServiceDto);
+            OrderMessageCreationRequestServiceDto requestServiceDto2 = assignCompanyDeliveryManager(requestServiceDto1);
+            DeliveryCreationResponseServiceDto responseServiceDto = createMessageToOrder(requestServiceDto2);
+
+            rabbitTemplate.convertAndSend(queueOrder, new DeliveryCreationResponseDto(
+                    responseServiceDto.orderId(),
+                    responseServiceDto.orderDetailId(),
+                    responseServiceDto.deliveryId(),
+                    responseServiceDto.deliveryDepartureName(),
+                    responseServiceDto.deliveryStopoverNames(),
+                    responseServiceDto.deliveryDestinationName(),
+                    responseServiceDto.deliveryManagerName(),
+                    responseServiceDto.deliveryManagerSlackId())
+            );
+
+            log.info("[Delivery Creation Success Message Issued] orderId = {}, orderDetailId = {}, deliveryId = {}",
+                    responseServiceDto.orderId(),responseServiceDto.orderDetailId(), responseServiceDto.deliveryId());
+
+        } catch (DeliveryException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new DeliveryException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+
+    }
+
     public DeliveryManagerAssignmentRequestServiceDto assignHubDeliveryManager(
             DeliveryManagerAssignmentRequestServiceDto requestServiceDto) {
 
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.deliveryId())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
-        return deliveryManagerAssignmentHelper.assignHubDeliveryManagerWithLock(
-                deliveryManagerAssignmentHelper.getHubDeliveryManagerLockKey(),
-                deliveryManagerAssignmentHelper.getHubDeliveryManagerSequenceKey(),
-                delivery);
+        return deliveryManagerAssignmentHelper.assignHubDeliveryManagerWithLock(delivery);
     }
 
-
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public OrderMessageCreationRequestServiceDto assignCompanyDeliveryManager(
             DeliveryManagerAssignmentRequestServiceDto requestServiceDto) {
 
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.deliveryId())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
-        UUID arriveHubId = delivery.getArriveHubId();
         return deliveryManagerAssignmentHelper.assignCompanyDeliveryManagerWithLock(
-                deliveryManagerAssignmentHelper.getCompanyDeliveryManagerLockKey(arriveHubId),
-                deliveryManagerAssignmentHelper.getCompanyDeliveryManagerSequenceKey(arriveHubId),
                 delivery,
-                arriveHubId);
+                delivery.getArriveHubId());
     }
 
-
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public DeliveryCreationResponseServiceDto createMessageToOrder(
             OrderMessageCreationRequestServiceDto requestServiceDto) {
 
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.deliveryId())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
-        List<DeliveryRoute> hubRoutes = delivery.getRoutes();
-
         StringBuilder hubNames = new StringBuilder(delivery.getDepartureHubName());
-
+        List<DeliveryRoute> hubRoutes = delivery.getRoutes();
         for (DeliveryRoute route: hubRoutes) {
             hubNames.append(",").append(route.getArriveHubId());
         }
