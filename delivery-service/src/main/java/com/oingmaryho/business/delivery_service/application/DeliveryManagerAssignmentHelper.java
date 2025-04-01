@@ -15,29 +15,37 @@ public class DeliveryManagerAssignmentHelper {
 
     private final DeliveryLockService deliveryLockService;
 
-    public String getHubDeliveryManagerLockKey() {
+    private String getHubDeliveryManagerLockKey() {
         return "hub:delivery";
     }
 
-    public String getCompanyDeliveryManagerLockKey(UUID hubId) {
+    private String getCompanyDeliveryManagerLockKey(UUID hubId) {
         return "company:delivery:" + hubId;
     }
 
-    public String getHubDeliveryManagerSequenceKey() {
+    private String getHubDeliveryManagerSequenceKey() {
         return "hub:delivery:sequence";
     }
 
-    public String getCompanyDeliveryManagerSequenceKey(UUID hubId) {
+    private String getCompanyDeliveryManagerSequenceKey(UUID hubId) {
         return "company:delivery:sequence:" + hubId;
     }
 
-    public DeliveryManagerAssignmentRequestServiceDto assignHubDeliveryManagerWithLock(
-            String lockKey, String sequenceKey, Delivery delivery) {
-        return deliveryLockService.assignHubDeliveryManagerWithLock(lockKey, sequenceKey, delivery);
+    public DeliveryManagerAssignmentRequestServiceDto assignHubDeliveryManagerWithLock(Delivery delivery) {
+        return deliveryLockService.assignHubDeliveryManagerWithLock(
+                getHubDeliveryManagerLockKey(),
+                getHubDeliveryManagerSequenceKey(),
+                delivery);
     }
 
-    public OrderMessageCreationRequestServiceDto assignCompanyDeliveryManagerWithLock(
-            String lockKey, String sequenceKey, Delivery delivery, UUID arriveHubId) {
-        return deliveryLockService.assignCompanyDeliveryManagerWithLock(lockKey, sequenceKey, delivery, arriveHubId);
+    public OrderMessageCreationRequestServiceDto assignCompanyDeliveryManagerWithLock(Delivery delivery,
+                                                                                      UUID arriveHubId) {
+        return deliveryLockService.assignCompanyDeliveryManagerWithLock(
+                getCompanyDeliveryManagerLockKey(arriveHubId),
+                getCompanyDeliveryManagerSequenceKey(arriveHubId),
+                delivery,
+                arriveHubId
+        );
+
     }
 }

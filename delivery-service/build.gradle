@@ -73,6 +73,9 @@ dependencies {
 	// Redisson
 	implementation 'org.redisson:redisson-spring-boot-starter:3.18.0'
 
+	// retry
+	implementation 'org.springframework.retry:spring-retry'
+
 }
 
 dependencyManagement {

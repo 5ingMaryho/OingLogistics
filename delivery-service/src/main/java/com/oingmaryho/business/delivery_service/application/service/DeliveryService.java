@@ -53,11 +53,9 @@ public class DeliveryService {
             @CacheEvict(cacheNames = "delivery", key = "#requestServiceDto.id()"),
             @CacheEvict(cacheNames = "deliveries", allEntries = true)
     })
-    public DeliveryUpdateResponseServiceDto updateDelivery(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryUpdateRequestServiceDto requestServiceDto) {
-
+    public DeliveryUpdateResponseServiceDto updateDelivery(Long userId,
+                                                           UserRoleType userRole,
+                                                           DeliveryUpdateRequestServiceDto requestServiceDto) {
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
@@ -75,7 +73,7 @@ public class DeliveryService {
         }
 
         // managerId로 user 쪽에 수정하려는 manager가 '업체 배송 담당자'인지 유효성 검사
-        UserRoleType userRoleType = (UserRoleType) Optional.ofNullable(
+        UserRoleType userRoleType = Optional.ofNullable(
                 userClient.getUserRoleById(requestServiceDto.managerId()).getBody()
         ).orElseThrow(() -> new DeliveryException(ErrorCode.USER_ROLE_NOT_FOUND));
 
@@ -113,11 +111,9 @@ public class DeliveryService {
             @CacheEvict(cacheNames = "delivery", key = "#requestServiceDto.id()"),
             @CacheEvict(cacheNames = "deliveries", allEntries = true)
     })
-    public DeliveryUpdateStatusResponseServiceDto updateStatusDelivery(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryUpdateStatusRequestServiceDto requestServiceDto) {
-
+    public DeliveryUpdateStatusResponseServiceDto updateStatusDelivery(Long userId,
+                                                                       UserRoleType userRole,
+                                                                       DeliveryUpdateStatusRequestServiceDto requestServiceDto) {
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
@@ -172,11 +168,9 @@ public class DeliveryService {
             @CacheEvict(cacheNames = "delivery", key = "#requestServiceDto.id()"),
             @CacheEvict(cacheNames = "deliveries", allEntries = true)
     })
-    public void deleteDelivery(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryDeletionRequestServiceDto requestServiceDto) {
-
+    public void deleteDelivery(Long userId,
+                               UserRoleType userRole,
+                               DeliveryDeletionRequestServiceDto requestServiceDto) {
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
@@ -204,11 +198,9 @@ public class DeliveryService {
      */
     @Transactional(readOnly =true)
     @Cacheable(cacheNames = "delivery", key = "#requestServiceDto.id()")
-    public DeliveryResponseServiceDto GetDeliveryDetail(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryDetailRequestServiceDto requestServiceDto) {
-
+    public DeliveryResponseServiceDto GetDeliveryDetail(Long userId,
+                                                        UserRoleType userRole,
+                                                        DeliveryDetailRequestServiceDto requestServiceDto) {
         Delivery delivery = deliveryRepository.findByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.DELIVERY_NOT_FOUND));
 
@@ -267,11 +259,9 @@ public class DeliveryService {
      */
     @Transactional(readOnly =true)
     @Cacheable(cacheNames = "deliveries")
-    public Page<DeliveryResponseServiceDto> GetDeliveriesBySearch(
-            Long userId,
-            UserRoleType userRole,
-            DeliverySearchRequestServiceDto requestServiceDto) {
-
+    public Page<DeliveryResponseServiceDto> GetDeliveriesBySearch(Long userId,
+                                                                  UserRoleType userRole,
+                                                                  DeliverySearchRequestServiceDto requestServiceDto) {
         UUID hubId = null;
         UUID companyId = null;
 
@@ -333,11 +323,9 @@ public class DeliveryService {
      */
     @Transactional(readOnly =true)
     @Cacheable(cacheNames = "route", key = "#requestServiceDto.id()")
-    public DeliveryRouteResponseServiceDto GetDeliveryRouteDetail(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryRouteDetailRequestServiceDto requestServiceDto) {
-
+    public DeliveryRouteResponseServiceDto GetDeliveryRouteDetail(Long userId,
+                                                                  UserRoleType userRole,
+                                                                  DeliveryRouteDetailRequestServiceDto requestServiceDto) {
         DeliveryRoute route = deliveryRepository.findRouteByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.ROUTE_NOT_FOUND));
 
@@ -398,11 +386,9 @@ public class DeliveryService {
      */
     @Transactional(readOnly = true)
     @Cacheable(cacheNames = "routes")
-    public Page<DeliveryRouteResponseServiceDto> GetDeliveryRoutesBySearch(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryRouteSearchRequestServiceDto requestServiceDto) {
-
+    public Page<DeliveryRouteResponseServiceDto> GetDeliveryRoutesBySearch(Long userId,
+                                                                           UserRoleType userRole,
+                                                                           DeliveryRouteSearchRequestServiceDto requestServiceDto) {
         UUID hubId = null;
         UUID companyId = null;
 
@@ -471,11 +457,9 @@ public class DeliveryService {
             @CacheEvict(cacheNames = "route", key = "#requestServiceDto.id()"),
             @CacheEvict(cacheNames = "routes", allEntries = true)
     })
-    public DeliveryRouteUpdateStatusResponseServiceDto updateRouteStatusDelivery(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryRouteUpdateStatusRequestServiceDto requestServiceDto) {
-
+    public DeliveryRouteUpdateStatusResponseServiceDto updateRouteStatusDelivery(Long userId,
+                                                                                 UserRoleType userRole,
+                                                                                 DeliveryRouteUpdateStatusRequestServiceDto requestServiceDto) {
         DeliveryRoute route = deliveryRepository.findRouteByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.ROUTE_NOT_FOUND));
 
@@ -541,11 +525,9 @@ public class DeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public DeliveryManagerResponseServiceDto GetDeliveryManagerDetail(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryManagerDetailRequestServiceDto requestServiceDto) {
-
+    public DeliveryManagerResponseServiceDto GetDeliveryManagerDetail(Long userId,
+                                                                      UserRoleType userRole,
+                                                                      DeliveryManagerDetailRequestServiceDto requestServiceDto) {
         DeliveryManager manager = deliveryManagerRepository.findByIdAndIsDeletedFalse(requestServiceDto.id())
                 .orElseThrow(() -> new DeliveryException(ErrorCode.MANAGER_NOT_FOUND));
 
@@ -566,11 +548,9 @@ public class DeliveryService {
 
 
     @Transactional(readOnly = true)
-    public Page<DeliveryManagerResponseServiceDto> GetDeliveryManagerBySearch(
-            Long userId,
-            UserRoleType userRole,
-            DeliveryManagerSearchRequestServiceDto requestServiceDto) {
-
+    public Page<DeliveryManagerResponseServiceDto> GetDeliveryManagerBySearch(Long userId,
+                                                                              UserRoleType userRole,
+                                                                              DeliveryManagerSearchRequestServiceDto requestServiceDto) {
         UUID hubId = null;
 
         // 허브 관리자 : 본인이 담당하는 허브 id 조회
@@ -615,15 +595,13 @@ public class DeliveryService {
 
 
     // 배송 조회 검색 조건 생성 (일반 사용자)
-    private DeliverySearchCriteria createDeliverySearchCriteria(
-            UUID id,
-            UUID orderId,
-            UUID orderDetailId,
-            UUID hubId,
-            UUID companyId,
-            DeliveryStatus status,
-            Long managerId) {
-
+    private DeliverySearchCriteria createDeliverySearchCriteria(UUID id,
+                                                                UUID orderId,
+                                                                UUID orderDetailId,
+                                                                UUID hubId,
+                                                                UUID companyId,
+                                                                DeliveryStatus status,
+                                                                Long managerId) {
         return DeliverySearchCriteria.builder()
                 .id(id)
                 .orderId(orderId)
@@ -637,18 +615,15 @@ public class DeliveryService {
     }
 
     // 배송 경로 조회 검색 조건 생성 (일반 사용자)
-    private DeliveryRouteSearchCriteria createDeliveryRouteSearchCriteria(
-            UUID routeId,
-            UUID orderId,
-            UUID orderDetailId,
-            UUID deliveryId,
-            UUID departureHubId,
-            UUID arriveHubId,
-            UUID companyId,
-            Long managerId,
-            DeliveryRouteStatus status) {
-
-
+    private DeliveryRouteSearchCriteria createDeliveryRouteSearchCriteria(UUID routeId,
+                                                                          UUID orderId,
+                                                                          UUID orderDetailId,
+                                                                          UUID deliveryId,
+                                                                          UUID departureHubId,
+                                                                          UUID arriveHubId,
+                                                                          UUID companyId,
+                                                                          Long managerId,
+                                                                          DeliveryRouteStatus status) {
         return DeliveryRouteSearchCriteria.builder()
                 .routeId(routeId)
                 .orderId(orderId)
@@ -664,15 +639,12 @@ public class DeliveryService {
     }
 
     // 배송 담당자 검색 조건 생성 (일반 사용자)
-    private DeliveryManagerSearchCriteria createDeliveryManagerSearchCriteria(
-            UUID id,
-            String slackId,
-            UUID hubId,
-            Long managerId,
-            DeliveryManagerType type,
-            Integer sequence) {
-
-
+    private DeliveryManagerSearchCriteria createDeliveryManagerSearchCriteria(UUID id,
+                                                                              String slackId,
+                                                                              UUID hubId,
+                                                                              Long managerId,
+                                                                              DeliveryManagerType type,
+                                                                              Integer sequence) {
         return DeliveryManagerSearchCriteria.builder()
                 .id(id)
                 .slackId(slackId)

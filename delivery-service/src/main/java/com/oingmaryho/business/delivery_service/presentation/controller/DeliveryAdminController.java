@@ -32,27 +32,16 @@ public class DeliveryAdminController {
 
     private final DeliveryAdminService deliveryAdminService;
     private final DeliveryPresentationMapper deliveryPresentationMapper;
-    private final RabbitTemplate rabbitTemplate;
-
-    @Value("${message.queue.hubDeliveryManager}")
-    private String queueHubDeliveryManager;
 
     @Description(
             "마스터 - 배송 생성"
     )
     @Deprecated
-    @RequiredRoles(UserRoleType.MASTER)
     @PostMapping
-    public ResponseEntity<UUID> createDelivery(
+    public ResponseEntity<?> createDelivery(
             @RequestBody DeliveryCreationRequestDto requestDto) {
-        DeliveryManagerAssignmentRequestServiceDto requestServiceDto = deliveryAdminService.createDelivery(
-                deliveryPresentationMapper.toCreationServiceDto(requestDto));
-
-        rabbitTemplate.convertAndSend(queueHubDeliveryManager, new DeliveryManagerAssignmentRequestDto(
-                requestServiceDto.deliveryId()
-        ));
-
-        return ResponseEntity.ok(requestServiceDto.deliveryId());
+        deliveryAdminService.createDelivery(deliveryPresentationMapper.toCreationServiceDto(requestDto));
+        return ResponseEntity.ok().build();
     }
 
     @Description(

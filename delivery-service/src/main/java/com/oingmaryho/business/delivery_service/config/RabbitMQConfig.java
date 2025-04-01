@@ -40,40 +40,21 @@ public class RabbitMQConfig {
     @Value("${message.queue.order}")
     private String queueOrder;
 
-    @Value("${message.queue.deliveryMessageCreation}")
-    private String queueDeliveryMessageCreation;
+    @Value("${message.queue.deliveryManager}")
+    private String queueDeliveryManager;
 
-    @Value("${message.deliveryMessageCreation.exchange}")
-    private String deliveryMessageCreationExchange;
-
-    @Value("${message.queue.hubDeliveryManager}")
-    private String queueHubDeliveryManager;
-
-    @Value("${message.hubDeliveryManager.exchange}")
-    private String hubDeliveryManagerExchange;
-
-    @Value("${message.queue.companyDeliveryManager}")
-    private String queueCompanyDeliveryManager;
-
-    @Value("${message.companyDeliveryManager.exchange}")
-    private String companyDeliveryManagerExchange;
+    @Value("${message.deliveryManager.exchange}")
+    private String deliveryManagerExchange;
 
 
     @Bean
     public TopicExchange orderExchange() {
         return new TopicExchange(orderExchange);
     }
+
     @Bean
-    public TopicExchange deliveryMessageCreationExchange() {
-        return new TopicExchange(deliveryMessageCreationExchange);
-    }
-    @Bean
-    public TopicExchange hubDeliveryManagerExchange() {
-        return new TopicExchange(hubDeliveryManagerExchange);
-    }
-    @Bean
-    public TopicExchange companyDeliveryManagerExchange() {
-        return new TopicExchange(companyDeliveryManagerExchange);
+    public TopicExchange deliveryManagerExchange() {
+        return new TopicExchange(deliveryManagerExchange);
     }
 
     @Bean
@@ -92,33 +73,15 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue queueDeliveryMessageCreation() {
-        return new Queue(queueDeliveryMessageCreation, true);
+    public Queue queueDeliveryManager() {
+        return new Queue(queueDeliveryManager, true);
     }
 
     @Bean
-    public Binding bindingDeliveryMessageCreation() {
-        return BindingBuilder.bind(queueDeliveryMessageCreation()).to(deliveryMessageCreationExchange()).with(queueDeliveryMessageCreation);
-    }
-    @Bean
-    public Queue queueHubDeliveryManager() {
-        return new Queue(queueHubDeliveryManager, true);
+    public Binding bindingDeliveryManager() {
+        return BindingBuilder.bind(queueDeliveryManager()).to(deliveryManagerExchange()).with(queueDeliveryManager);
     }
 
-    @Bean
-    public Binding bindingHubDeliveryManager() {
-        return BindingBuilder.bind(queueHubDeliveryManager()).to(hubDeliveryManagerExchange()).with(queueHubDeliveryManager);
-    }
-
-    @Bean
-    public Queue queueCompanyDeliveryManager() {
-        return new Queue(queueCompanyDeliveryManager, true);
-    }
-
-    @Bean
-    public Binding bindingCompanyDeliveryManager() {
-        return BindingBuilder.bind(queueCompanyDeliveryManager()).to(companyDeliveryManagerExchange()).with(queueCompanyDeliveryManager);
-    }
 
 
 }
