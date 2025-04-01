@@ -17,11 +17,9 @@ public class DeliveryCreatedProducer {
 
     @RabbitListener(queues = "${message.queue.deliveryManager}")
     public void assignHubDeliveryManager(DeliveryManagerAssignmentRequestDto requestDto) {
-        log.info("[HubDeliveryManager Assignment Request] deliveryId = {}", requestDto.deliveryId());
         DeliveryManagerAssignmentRequestServiceDto requestServiceDto = new DeliveryManagerAssignmentRequestServiceDto(
                 requestDto.deliveryId()
         );
         deliveryAdminService.assignDeliveryManager(requestServiceDto);
-
     }
 }

@@ -33,14 +33,12 @@ public class DeliveryLockService {
 
     private final DeliveryManagerRepository deliveryManagerRepository;
     private final DeliveryApplicationMapper deliveryApplicationMapper;
-
     private final RedisTemplate<String, Object> redisTemplate;
 
     @DistributedLock(key = "#lockKey")
-    public DeliveryManagerAssignmentRequestServiceDto assignHubDeliveryManagerWithLock(
-            String lockKey,
-            String hubDeliveryManagerSequenceKey,
-            Delivery delivery) {
+    public DeliveryManagerAssignmentRequestServiceDto assignHubDeliveryManagerWithLock(String lockKey,
+                                                                                       String hubDeliveryManagerSequenceKey,
+                                                                                       Delivery delivery) {
 
         initializeSequenceIfAbsent(hubDeliveryManagerSequenceKey);
 
@@ -71,8 +69,9 @@ public class DeliveryLockService {
             backoff = @Backoff(delay = 2000),
             retryFor  = {RuntimeException.class}
     )
-    private void assignHubDeliveryManagerForRoute(
-            HubAssignmentContext context) {
+    private void assignHubDeliveryManagerForRoute(HubAssignmentContext context) {
+
+        // todo runtime exception test
 
         DeliveryRoute route = context.getHubRoutes().get(context.getSequence());
 
@@ -90,9 +89,8 @@ public class DeliveryLockService {
     }
 
     @Recover
-    public void recoverForAssignHubDeliveryManagerForRoute(
-            RetryableException e,
-            HubAssignmentContext context) {
+    public void recoverForAssignHubDeliveryManagerForRoute(RetryableException e,
+                                                           HubAssignmentContext context) {
         log.warn("Retry failed. Recovering hub delivery manager assignment. Redis key: {}, backupSeq: {}",
                 context.getSequenceKey(), context.getBackupSequence());
         redisTemplate.opsForValue().set(context.getSequenceKey(), context.getBackupSequence());
@@ -100,11 +98,10 @@ public class DeliveryLockService {
     }
 
     @DistributedLock(key = "#lockKey")
-    public OrderMessageCreationRequestServiceDto assignCompanyDeliveryManagerWithLock(
-            String lockKey,
-            String companyDeliveryManagerSequenceKey,
-            Delivery delivery,
-            UUID arriveHubId) {
+    public OrderMessageCreationRequestServiceDto assignCompanyDeliveryManagerWithLock(String lockKey,
+                                                                                      String companyDeliveryManagerSequenceKey,
+                                                                                      Delivery delivery,
+                                                                                      UUID arriveHubId) {
 
         initializeSequenceIfAbsent(companyDeliveryManagerSequenceKey);
 
@@ -130,8 +127,7 @@ public class DeliveryLockService {
             backoff = @Backoff(delay = 2000),
             retryFor  = {RuntimeException.class}
     )
-    private void assignCompanyDeliveryManagerForDelivery(
-            CompanyAssignmentContext context) {
+    private void assignCompanyDeliveryManagerForDelivery(CompanyAssignmentContext context) {
 
         // 현재 순번 조회
         int companyDeliveryManagerSequence = getSequenceValueOrDefault(context.getSequenceKey());
@@ -148,9 +144,8 @@ public class DeliveryLockService {
     }
 
     @Recover
-    public void recoverForAssignCompanyDeliveryManagerForDelivery(
-            RetryableException e,
-            CompanyAssignmentContext context) {
+    public void recoverForAssignCompanyDeliveryManagerForDelivery(RetryableException e,
+                                                                  CompanyAssignmentContext context) {
         log.warn("Retry failed. Recovering company delivery manager assignment. Redis key: {}, backupSeq: {}",
                 context.getSequenceKey(), context.getBackupSequence());
         redisTemplate.opsForValue().set(context.getSequenceKey(), context.getBackupSequence());
