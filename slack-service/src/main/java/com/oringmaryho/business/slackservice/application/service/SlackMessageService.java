@@ -1,7 +1,6 @@
 package com.oringmaryho.business.slackservice.application.service;
 
 import com.oringmaryho.business.slackservice.application.dto.request.SlackAdminMessageCreateRequestServiceDto;
-import com.oringmaryho.business.slackservice.application.dto.request.SlackMessageCreateRequestServiceDto;
 import com.oringmaryho.business.slackservice.application.feign.UserClient;
 import com.oringmaryho.business.slackservice.application.utils.DirectMessageService;
 import com.oringmaryho.business.slackservice.domain.SlackMessage;
@@ -29,19 +28,15 @@ public class SlackMessageService {
   )
   public void createSlackMessage(SlackAdminMessageCreateRequestServiceDto requestDto) {
 
-    //user service에서 슬랙 아이디 받아오기
-    //인터페이스 설정
     ResponseEntity<String> response = userClient.getUserSlackIdById(requestDto.id());
     String slackId = response.getBody();
-    log.info("slackId:{}", slackId);
-    //slackClient 메시지 송신 메서드 호출
+
     String message = requestDto.message();
     if (slackId == null || slackId.isEmpty()) {
       throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
     }
     directMessageService.sendDirectMessage(slackId, message);
 
-    //보낸 슬랙 메시지 저장
     SlackMessage slackMessage = SlackMessage.builder()
         .receiverId(requestDto.id())
         .message(message)

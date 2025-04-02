@@ -35,14 +35,13 @@ public class SlackMessageQueueService implements MessageHandler {
   private void sendToSlack(SlackMessageDto requestDto) {
     ResponseEntity<String> response = userClient.getUserSlackIdById(requestDto.id());
     String slackId = response.getBody();
-    log.info("slackId:{}", slackId);
-    //slackClient 메시지 송신 메서드 호출
+    log.info("메시지 수신자의 slackId:{}", slackId);
     String message = requestDto.message();
     if (slackId == null) {
       throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
     }
     directMessageService.sendDirectMessage(slackId, message);
-    //보낸 슬랙 메시지 저장
+
     SlackMessage slackMessage = SlackMessage.builder()
         .receiverId(requestDto.id())
         .message(message)
