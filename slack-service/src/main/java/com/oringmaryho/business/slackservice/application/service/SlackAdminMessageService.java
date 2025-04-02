@@ -51,7 +51,7 @@ public class SlackAdminMessageService {
     return messages.map(slackApplicationMapper::toSlackMessageResponseDto);
   }
 
-  public SlackMessageSearchCriteria createSlackSearchCriteria(
+  private SlackMessageSearchCriteria createSlackSearchCriteria(
       SlackMessageSearchRequestServiceDto requestDto) {
     return SlackMessageSearchCriteria.builder()
         .id(requestDto.id())
