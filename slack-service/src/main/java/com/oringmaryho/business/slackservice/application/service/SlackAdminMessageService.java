@@ -19,6 +19,7 @@ import com.oringmaryho.business.slackservice.presentation.dto.response.SlackMess
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.context.annotation.Description;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -82,7 +83,7 @@ public class SlackAdminMessageService {
     String slackId = response.getBody();
 
     String message = requestDto.message();
-    if (slackId == null || slackId.isEmpty()) {
+    if (StringUtils.isBlank(slackId)) {
       throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
     }
     directMessageService.sendDirectMessage(slackId, message);
