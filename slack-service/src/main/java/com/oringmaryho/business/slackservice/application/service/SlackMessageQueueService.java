@@ -35,7 +35,7 @@ public class SlackMessageQueueService implements MessageHandler {
   private void sendToSlack(SlackMessageDto requestDto) {
     ResponseEntity<String> response = userClient.getUserSlackIdById(requestDto.id());
     String slackId = response.getBody();
-    log.info("메시지 수신자의 slackId:{}", slackId);
+    log.debug("메시지 수신자의 slackId:{}", slackId);
     String message = requestDto.message();
     if (slackId == null) {
       throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
