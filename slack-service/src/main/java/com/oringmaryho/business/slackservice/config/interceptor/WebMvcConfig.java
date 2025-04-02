@@ -19,11 +19,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
   @Override
   public void addInterceptors(InterceptorRegistry registry) {
-    // admin 확인용 인터셉터
     registry.addInterceptor(new AdminCheckInterceptor(redisTemplate))
         .excludePathPatterns("/api/**");
 
-    // 일반 사용자 확인용 인터셉터
     registry.addInterceptor(new UserCheckInterceptor(redisTemplate))
         .excludePathPatterns("/admin/**");
   }
