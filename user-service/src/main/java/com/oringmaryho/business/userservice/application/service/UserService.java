@@ -2,8 +2,13 @@ package com.oringmaryho.business.userservice.application.service;
 
 import com.oringmaryho.business.userservice.application.UserHelper;
 import com.oringmaryho.business.userservice.application.dto.mapper.UserApplicationMapper;
-import com.oringmaryho.business.userservice.application.dto.request.*;
-import com.oringmaryho.business.userservice.application.dto.response.*;
+import com.oringmaryho.business.userservice.application.dto.request.UserSearchRequestServiceDto;
+import com.oringmaryho.business.userservice.application.dto.request.UserSignInRequestServiceDto;
+import com.oringmaryho.business.userservice.application.dto.request.UserSignOutRequestServiceDto;
+import com.oringmaryho.business.userservice.application.dto.request.UserSignUpRequestServiceDto;
+import com.oringmaryho.business.userservice.application.dto.request.UserSlackCodeRequestServiceDto;
+import com.oringmaryho.business.userservice.application.dto.request.UserSlackConfirmRequestServiceDto;
+import com.oringmaryho.business.userservice.application.dto.response.UserSignInResponseServiceDto;
 import com.oringmaryho.business.userservice.application.messaging.UserMessageService;
 import com.oringmaryho.business.userservice.application.utils.CodeStorage;
 import com.oringmaryho.business.userservice.application.utils.DirectMessageAuthService;
@@ -17,6 +22,8 @@ import com.oringmaryho.business.userservice.exception.UserException;
 import com.oringmaryho.business.userservice.presentation.dto.response.UserSearchResponseDto;
 import com.oringmaryho.business.userservice.presentation.dto.response.UserSignInResponseDto;
 import io.jsonwebtoken.Claims;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,9 +31,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -57,7 +61,8 @@ public class UserService {
     userHelper.passwordVerify(requestServiceDto.password());
     userHelper.checkUsernameExists(requestServiceDto.username(), userRepository);
 
-    String encodedPassword = userHelper.encodePassword(requestServiceDto.password(), passwordEncoder);
+    String encodedPassword = userHelper.encodePassword(requestServiceDto.password(),
+        passwordEncoder);
     User user = User.builder()
         .username(requestServiceDto.username())
         .password(encodedPassword)
@@ -141,7 +146,8 @@ public class UserService {
     if (codeStorage.hasKey(requestServiceDto.username())) {
       codeStorage.removeCode(requestServiceDto.username());
     }
-    codeStorage.storeCode(requestServiceDto.username(), user.getSlackId(), slackCode, SLACK_CODE_TTL);
+    codeStorage.storeCode(requestServiceDto.username(), user.getSlackId(), slackCode,
+        SLACK_CODE_TTL);
   }
 
   @Transactional

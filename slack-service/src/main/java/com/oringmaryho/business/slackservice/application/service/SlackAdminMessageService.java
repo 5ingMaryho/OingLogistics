@@ -1,14 +1,5 @@
 package com.oringmaryho.business.slackservice.application.service;
 
-import java.time.LocalDateTime;
-
-import org.springframework.context.annotation.Description;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.oringmaryho.business.slackservice.application.dto.mapper.SlackApplicationMapper;
 import com.oringmaryho.business.slackservice.application.dto.request.SlackAdminMessageCreateRequestServiceDto;
 import com.oringmaryho.business.slackservice.application.dto.request.SlackMessageDeleteRequestServiceDto;
@@ -23,98 +14,103 @@ import com.oringmaryho.business.slackservice.domain.repository.CustomSlackMessag
 import com.oringmaryho.business.slackservice.exception.ErrorCode;
 import com.oringmaryho.business.slackservice.exception.SlackException;
 import com.oringmaryho.business.slackservice.infrastructure.SlackJpaRepository;
-import com.oringmaryho.business.slackservice.presentation.dto.request.SlackAdminMessageCreateRequestDto;
 import com.oringmaryho.business.slackservice.presentation.dto.request.SlackMessageUpdateResponseDto;
 import com.oringmaryho.business.slackservice.presentation.dto.response.SlackMessageResponseDto;
-
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.context.annotation.Description;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SlackAdminMessageService {
 
-	private final DirectMessageService directMessageService;
-	private final UserClient userClient;
-	private final SlackJpaRepository slackJpaRepository;
-	private final SlackApplicationMapper slackApplicationMapper;
-	private final CustomSlackMessageRepository customSlackMessageRepository;
+  private final DirectMessageService directMessageService;
+  private final UserClient userClient;
+  private final SlackJpaRepository slackJpaRepository;
+  private final SlackApplicationMapper slackApplicationMapper;
+  private final CustomSlackMessageRepository customSlackMessageRepository;
 
-	@Description("모든 슬랙 메시지 조회")
-	@Transactional(readOnly = true)
-	public Page<SlackMessageResponseDto> getSlackMessages(SlackMessageSearchRequestServiceDto requestServiceDto,
-		Pageable pageable) {
+  @Description("모든 슬랙 메시지 조회")
+  @Transactional(readOnly = true)
+  public Page<SlackMessageResponseDto> getSlackMessages(
+      SlackMessageSearchRequestServiceDto requestServiceDto,
+      Pageable pageable) {
 
-		//쿼리 dsl로 유저 조회
-		Page<SlackMessage> messages = customSlackMessageRepository.findDynamicQuery(
-			createSlackSearchCriteria(requestServiceDto),
-			pageable);
+    Page<SlackMessage> messages = customSlackMessageRepository.findDynamicQuery(
+        createSlackSearchCriteria(requestServiceDto),
+        pageable);
 
-		return messages.map(slackApplicationMapper::toSlackMessageResponseDto);
-	}
+    return messages.map(slackApplicationMapper::toSlackMessageResponseDto);
+  }
 
-	public SlackMessageSearchCriteria createSlackSearchCriteria(SlackMessageSearchRequestServiceDto requestDto) {
-		return SlackMessageSearchCriteria.builder()
-			.id(requestDto.id())
-			.receiverId(requestDto.receiverId())
-			.message(requestDto.message())
-			.sentAt(requestDto.sentAt())
-			.isDeleted(requestDto.isDeleted())
-			.build();
-	}
+  private SlackMessageSearchCriteria createSlackSearchCriteria(
+      SlackMessageSearchRequestServiceDto requestDto) {
+    return SlackMessageSearchCriteria.builder()
+        .id(requestDto.id())
+        .receiverId(requestDto.receiverId())
+        .message(requestDto.message())
+        .sentAt(requestDto.sentAt())
+        .isDeleted(requestDto.isDeleted())
+        .build();
+  }
 
-	@Description("id로 슬랙 메시지 조회")
-	@Transactional(readOnly = true)
-	public SlackMessageResponseDto getSlackMessageById(SlackMessageFindRequestServiceDto requestServiceDto) {
-		SlackMessage slackMessage = customSlackMessageRepository.findActiveSlackMessageById(requestServiceDto.id())
-			.orElseThrow(() -> new SlackException(ErrorCode.NOT_FOUND));
+  @Description("id로 슬랙 메시지 조회")
+  @Transactional(readOnly = true)
+  public SlackMessageResponseDto getSlackMessageById(
+      SlackMessageFindRequestServiceDto requestServiceDto) {
+    SlackMessage slackMessage = customSlackMessageRepository.findActiveSlackMessageById(
+            requestServiceDto.id())
+        .orElseThrow(() -> new SlackException(ErrorCode.NOT_FOUND));
 
-		return slackApplicationMapper.toSlackMessageResponseDto(slackMessage);
-	}
+    return slackApplicationMapper.toSlackMessageResponseDto(slackMessage);
+  }
 
-	@Description(
-		"슬랙 메시지 생성: 슬랙 컨트롤러에서 받음"
-	)
-	@Transactional
-	public void createSlackMessage(SlackAdminMessageCreateRequestServiceDto requestDto) {
+  @Description(
+      "슬랙 메시지 생성: 슬랙 컨트롤러에서 받음"
+  )
+  @Transactional
+  public void createSlackMessage(SlackAdminMessageCreateRequestServiceDto requestDto) {
 
-		//user service에서 슬랙 아이디 받아오기
-		//인터페이스 설정
-		ResponseEntity<String> response = userClient.getUserSlackIdById(requestDto.id());
-		String slackId = response.getBody();
-		log.info("slackId:{}", slackId);
-		//slackClient 메시지 송신 메서드 호출
-		String message = requestDto.message();
-		if (slackId == null || slackId.isEmpty()) {
-			throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
-		}
-		directMessageService.sendDirectMessage(slackId, message);
+    ResponseEntity<String> response = userClient.getUserSlackIdById(requestDto.id());
+    String slackId = response.getBody();
 
-		//보낸 슬랙 메시지 저장
-		SlackMessage slackMessage = SlackMessage.builder()
-			.receiverId(requestDto.id())
-			.message(message)
-			.sentAt(LocalDateTime.now())
-			.build();
-		slackJpaRepository.save(slackMessage);
-	}
+    String message = requestDto.message();
+    if (StringUtils.isBlank(slackId)) {
+      throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
+    }
+    directMessageService.sendDirectMessage(slackId, message);
 
-	@Description("슬랙 메시지 수정")
-	@Transactional
-	public SlackMessageUpdateResponseDto updateSlackMessage(SlackMessageUpdateRequestServiceDto requestServiceDto) {
-		SlackMessage slackMessage = slackJpaRepository.findById(requestServiceDto.id())
-			.orElseThrow(() -> new SlackException(ErrorCode.NOT_FOUND));
-		slackMessage.setMessage(requestServiceDto.message());
-		//todo: 슬랙 메시지 수정 시 채팅창에 있는 내용도 수정
-		return slackApplicationMapper.toSlackMessageUpdateResponseDto(requestServiceDto.id());
-	}
+    SlackMessage slackMessage = SlackMessage.builder()
+        .receiverId(requestDto.id())
+        .message(message)
+        .sentAt(LocalDateTime.now())
+        .build();
+    slackJpaRepository.save(slackMessage);
+  }
 
-	@Description("슬랙 메시지 삭제")
-	@Transactional
-	public void deleteSlackMessage(SlackMessageDeleteRequestServiceDto requestServiceDto) {
-		SlackMessage slackMessage = slackJpaRepository.findById(requestServiceDto.id())
-			.orElseThrow(() -> new SlackException(ErrorCode.NOT_FOUND));
-		slackMessage.softDelete(requestServiceDto.userId());
-	}
+  @Description("슬랙 메시지 수정")
+  @Transactional
+  public SlackMessageUpdateResponseDto updateSlackMessage(
+      SlackMessageUpdateRequestServiceDto requestServiceDto) {
+    SlackMessage slackMessage = slackJpaRepository.findById(requestServiceDto.id())
+        .orElseThrow(() -> new SlackException(ErrorCode.NOT_FOUND));
+    slackMessage.setMessage(requestServiceDto.message());
+    return slackApplicationMapper.toSlackMessageUpdateResponseDto(requestServiceDto.id());
+  }
+
+  @Description("슬랙 메시지 삭제")
+  @Transactional
+  public void deleteSlackMessage(SlackMessageDeleteRequestServiceDto requestServiceDto) {
+    SlackMessage slackMessage = slackJpaRepository.findById(requestServiceDto.id())
+        .orElseThrow(() -> new SlackException(ErrorCode.NOT_FOUND));
+    slackMessage.softDelete(requestServiceDto.userId());
+  }
 }

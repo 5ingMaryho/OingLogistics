@@ -9,6 +9,7 @@ import com.oringmaryho.business.userservice.exception.UserException;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -33,7 +34,7 @@ public class UserHelper {
   }
 
   public void validateRequiredField(String value, ErrorCode errorCode) {
-    if (value == null || value.isEmpty()) {
+    if (StringUtils.isBlank(value)) {
       throw new UserException(errorCode);
     }
   }

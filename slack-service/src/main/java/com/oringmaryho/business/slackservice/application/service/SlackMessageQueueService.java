@@ -11,6 +11,7 @@ import com.oringmaryho.business.slackservice.infrastructure.SlackJpaRepository;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.context.annotation.Description;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -35,14 +36,13 @@ public class SlackMessageQueueService implements MessageHandler {
   private void sendToSlack(SlackMessageDto requestDto) {
     ResponseEntity<String> response = userClient.getUserSlackIdById(requestDto.id());
     String slackId = response.getBody();
-    log.info("slackId:{}", slackId);
-    //slackClient 메시지 송신 메서드 호출
+    log.debug("메시지 수신자의 slackId:{}", slackId);
     String message = requestDto.message();
-    if (slackId == null) {
+    if (StringUtils.isEmpty(slackId)) {
       throw new SlackException(ErrorCode.SLACK_ID_EMPTY);
     }
     directMessageService.sendDirectMessage(slackId, message);
-    //보낸 슬랙 메시지 저장
+
     SlackMessage slackMessage = SlackMessage.builder()
         .receiverId(requestDto.id())
         .message(message)
